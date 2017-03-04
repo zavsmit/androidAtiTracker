@@ -3,6 +3,13 @@
       xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/menu_action_geo"
+        android:title="@string/select_geo"
+        android:visible="true"
+        app:showAsAction="never">
+    </item>
+
+    <item
         android:id="@+id/menu_action_end"
         android:title="@string/end"
         app:showAsAction="never">
@@ -11,7 +18,6 @@
     <item
         android:id="@+id/menu_action_start"
         android:title="@string/start"
-        android:visible="true"
         app:showAsAction="never">
     </item>
 

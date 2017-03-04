@@ -27,8 +27,10 @@ dependencies {
     })
     final RETROFIT_VERSION = '2.2.0'
 
-    compile 'com.google.android.gms:play-services-location:10.2.0'
     compile "com.squareup.retrofit2:converter-gson:$RETROFIT_VERSION"
+    compile 'com.google.android.gms:play-services-location:10.2.0'
+    compile 'com.google.android.gms:play-services-maps:10.2.0'
+    compile 'com.squareup.okhttp3:logging-interceptor:3.5.0'
     compile 'com.android.support:appcompat-v7:25.2.0'
     compile 'com.android.support:design:25.2.0'
     testCompile 'junit:junit:4.12'

@@ -5,7 +5,10 @@ import android.Manifest;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Build;
@@ -23,16 +26,40 @@ import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+
+import okhttp3.Interceptor;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+import okhttp3.logging.HttpLoggingInterceptor;
+import retrofit2.Call;
+import retrofit2.Callback;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 import su.ati.tracker.atitracker.api.Api;
+import su.ati.tracker.atitracker.api.SharedPref;
+import su.ati.tracker.atitracker.api.model.Point;
+import su.ati.tracker.atitracker.api.model.SetPoint;
+import su.ati.tracker.atitracker.api.model.StartRide;
 
+import static su.ati.tracker.atitracker.MainActivity.MONEY_COUNT;
+import static su.ati.tracker.atitracker.MapsActivity.EXTRA_END_LAT;
+import static su.ati.tracker.atitracker.MapsActivity.EXTRA_END_LON;
+import static su.ati.tracker.atitracker.MapsActivity.EXTRA_START_LAT;
+import static su.ati.tracker.atitracker.MapsActivity.EXTRA_START_LON;
 import static su.ati.tracker.atitracker.api.Api.API_URL;
 
 public class GeoIntentService extends Service implements LocationListener,
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
     public static final String ACTION_UPDATE = "su.ati.tracker.atitracker.intentservice.UPDATE";
+    public static final String ACTION_DESTROY = "su.ati.tracker.atitracker.intentservice.DESTROY";
     public static final String EXTRA_KEY_UPDATE = "EXTRA_UPDATE";
+    public static final String EXTRA_KEY_NEED_PHOTO = "EXTRA_NEED_PHOTO";
     /**
      * The desired interval for location updates. Inexact. Updates may be more or less frequent.
      */
@@ -67,17 +94,54 @@ public class GeoIntentService extends Service implements LocationListener,
     protected String mLastUpdateTime;
     private PendingIntent pIntent;
     private Notification notification;
-    private boolean mIsSuccess;
-    private boolean mIsStopped;
+    private Api.Location mService;
+    private String rideId;
+    private boolean isStarted;
+
+    private DestroyBroadcast mDestroyBroadcast;
+
+    public class DestroyBroadcast extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+           onDestroy();
+        }
+    }
 
 
     public GeoIntentService() {
-        mIsSuccess = false;
-        mIsStopped = false;
+    }
+
+    private OkHttpClient.Builder makeHttpClient() {
+        OkHttpClient.Builder httpClient = new OkHttpClient.Builder();
+
+        if (BuildConfig.DEBUG) {
+            HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
+            interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+            httpClient.addInterceptor(interceptor);
+        }
+
+        httpClient.interceptors().add(new Interceptor() {
+            @Override public Response intercept(Chain chain) throws IOException {
+                Request original = chain.request();
+                Request.Builder requestBuilder = original.newBuilder().header("Content-Type", "application/json");
+                Request request = requestBuilder.build();
+                return chain.proceed(request);
+            }
+        });
+
+        return httpClient;
     }
 
     public void onCreate() {
         super.onCreate();
+
+        mDestroyBroadcast = new DestroyBroadcast();
+
+        // Регистрируем второй приёмник
+        IntentFilter updateIntentFilter = new IntentFilter(ACTION_DESTROY);
+        updateIntentFilter.addCategory(Intent.CATEGORY_DEFAULT);
+        registerReceiver(mDestroyBroadcast, updateIntentFilter);
 
         mLastUpdateTime = "";
 
@@ -87,31 +151,83 @@ public class GeoIntentService extends Service implements LocationListener,
         intent1.putExtra("sdfsdf", "somefile");
         pIntent = PendingIntent.getActivity(this, 0, intent1, 0);
 
+        initRetrofit();
+    }
 
-
-
-
+    private void initRetrofit() {
+        OkHttpClient.Builder httpClient = makeHttpClient();
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(API_URL)
+                .client(httpClient.build())
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
 
-        Api.AtiTracker service = retrofit.create(Api.AtiTracker.class);
+        mService = retrofit.create(Api.Location.class);
+    }
+
+    private void startRide(Intent intent) {
+
+        double startLat = intent.getDoubleExtra(EXTRA_START_LAT, 0);
+        double startLon = intent.getDoubleExtra(EXTRA_START_LON, 0);
+        double endLat = intent.getDoubleExtra(EXTRA_END_LAT, 0);
+        double endLon = intent.getDoubleExtra(EXTRA_END_LON, 0);
+
+        rideId = String.valueOf(startLat + startLon + endLat + endLon);
+        SharedPref.saveRideId(rideId, getApplicationContext());
+        long time = Calendar.getInstance().getTimeInMillis();
+
+        StartRide startRide = new StartRide();
+        startRide.setMoney(MONEY_COUNT);
+        if (mCurrentLocation != null) {
+            startRide.setLat(mCurrentLocation.getLatitude());
+            startRide.setLon(mCurrentLocation.getLongitude());
+        }
+        startRide.setTime(time);
+
+        startRide.setStartPoint(new Point(startLat, startLon, time));
+        startRide.setEndPoint(new Point(endLat, endLon, time));
 
 
-//        Call<List<Api.Contributor>> call = service.contributors();
-//        call.enqueue(new Callback<List<Api.Contributor>>() {
-//            @Override
-//            public void onResponse(Response<List<Api.Contributor>> response) {
-//                // Get result Repo from response.body()
-//            }
-//
-//            @Override
-//            public void onFailure(Throwable t) {
-//
-//            }
-//        });
+        Call<ResponseBody> call = mService.startRide(rideId, startRide);
+        call.enqueue(new Callback<ResponseBody>() {
+            @Override public void onResponse(Call<ResponseBody> call, retrofit2.Response<ResponseBody> response) {
+                isStarted = true;
+            }
 
+            @Override public void onFailure(Call<ResponseBody> call, Throwable t) {
+            }
+        });
+    }
+
+    private void setPoint(List<Point> points) {
+        Call<SetPoint> call = mService.setPoint(rideId, points);
+        call.enqueue(new Callback<SetPoint>() {
+            @Override public void onResponse(Call<SetPoint> call, retrofit2.Response<SetPoint> response) {
+                int percent = response.body().getPercent();
+                boolean needPhoto = response.body().isNeedsPhoto();
+                sendUpdateProgress(percent, needPhoto);
+                showNotif(percent);
+
+                SharedPref.savePointParams(mCurrentLocation, percent, needPhoto, getApplicationContext());
+            }
+
+            @Override public void onFailure(Call<SetPoint> call, Throwable t) {
+                Log.d("sdf", "sdf");
+            }
+        });
+    }
+
+    private void endRide() {
+        Call<SetPoint> call = mService.endRide(rideId, makePoint(mCurrentLocation));
+        call.enqueue(new Callback<SetPoint>() {
+            @Override public void onResponse(Call<SetPoint> call, retrofit2.Response<SetPoint> response) {
+                isStarted = false;
+            }
+
+            @Override public void onFailure(Call<SetPoint> call, Throwable t) {
+                Log.d("sdf", "sdf");
+            }
+        });
     }
 
 
@@ -130,6 +246,10 @@ public class GeoIntentService extends Service implements LocationListener,
      * Removes location updates from the FusedLocationApi.
      */
     protected void stopLocationUpdates() {
+        if (mGoogleApiClient.isConnected()) {
+            stopLocationUpdates();
+        }
+        mGoogleApiClient.disconnect();
         // It is a good practice to remove location requests when the activity is in a paused or
         // stopped state. Doing so helps battery performance and is especially
         // recommended in applications that request frequent location updates.
@@ -184,24 +304,18 @@ public class GeoIntentService extends Service implements LocationListener,
 
     @Override
     public void onDestroy() {
+
+        if (mDestroyBroadcast != null) {
+            if (mDestroyBroadcast.isOrderedBroadcast())
+                unregisterReceiver(mDestroyBroadcast);
+        }
+
         String notice;
-        if (mGoogleApiClient.isConnected()) {
-            stopLocationUpdates();
-        }
-        mGoogleApiClient.disconnect();
-
-        mIsStopped = true;
-
-        if (mIsSuccess) {
-            notice = "onDestroy with success";
-
-        } else {
-            notice = "onDestroy WITHOUT success!";
-        }
-
+        stopLocationUpdates();
+        endRide();
+        notice = "Маршрут завершен";
         Toast.makeText(getApplicationContext(), notice, Toast.LENGTH_LONG).show();
         super.onDestroy();
-
     }
 
     @Nullable
@@ -212,69 +326,53 @@ public class GeoIntentService extends Service implements LocationListener,
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-
         if (mGoogleApiClient.isConnected()) {
             startLocationUpdates();
         }
-        someTask();
+
+        startRide(intent);
+        showNotif(0);
+        startForeground(998, notification);
+
         return START_REDELIVER_INTENT;
     }
 
-    void someTask() {
+    private void showNotif(int i) {
+        String notificationText = String.valueOf((MONEY_COUNT * i / 100)) + " \u20BD, " + i + "%";
 
-        new Thread(new Runnable() {
-            public void run() {
-                for (int i = 0; i <= 10; i++) {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
+            notification = new Notification.Builder(getApplicationContext())
+                    .setContentTitle("Маршрут отслеживается")
+                    .setContentText(notificationText)
+                    .setTicker("Notification!")
+                    .setContentIntent(pIntent)
+                    .setWhen(System.currentTimeMillis())
+                    .setAutoCancel(true).setSmallIcon(R.mipmap.ic_launcher)
+                    .getNotification();
+        } else {
+            notification = new Notification.Builder(getApplicationContext())
+                    .setContentTitle("Маршрут отслеживается")
+                    .setContentText(notificationText)
+                    .setTicker("Notification!")
+                    .setContentIntent(pIntent)
+                    .setAutoCancel(false)
+                    .setWhen(System.currentTimeMillis())
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .build();
+        }
 
-                    if (mIsStopped) {
-                        break;
-                    }
-
-                    // посылаем промежуточные данные
-                    Intent updateIntent = new Intent();
-                    updateIntent.setAction(ACTION_UPDATE);
-                    updateIntent.addCategory(Intent.CATEGORY_DEFAULT);
-                    updateIntent.putExtra(EXTRA_KEY_UPDATE, i);
-                    sendBroadcast(updateIntent);
-
-                    mIsSuccess = true;
-
-                    // формируем уведомление
-                    String notificationText = String.valueOf((100 * i / 10))
-                            + " %";
-
-                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
-                        notification = new Notification.Builder(getApplicationContext())
-                                .setContentTitle("Progress")
-                                .setContentText(notificationText)
-                                .setTicker("Notification!")
-                                .setContentIntent(pIntent)
-                                .setWhen(System.currentTimeMillis())
-                                .setAutoCancel(true).setSmallIcon(R.mipmap.ic_launcher)
-                                .getNotification();
-                    } else {
-                        notification = new Notification.Builder(getApplicationContext())
-                                .setContentTitle("Progress")
-                                .setContentText(notificationText)
-                                .setTicker("Notification!")
-                                .setContentIntent(pIntent)
-                                .setAutoCancel(false)
-                                .setWhen(System.currentTimeMillis())
-                                .setSmallIcon(R.mipmap.ic_launcher)
-                                .build();
-                    }
-                    startForeground(998, notification);
-
-                }
-                //                stopForeground(true);
-            }
-        }).start();
+        startForeground(998, notification);
     }
+
+    private void sendUpdateProgress(int i, boolean isNeedPhoto) {
+        Intent updateIntent = new Intent();
+        updateIntent.setAction(ACTION_UPDATE);
+        updateIntent.addCategory(Intent.CATEGORY_DEFAULT);
+        updateIntent.putExtra(EXTRA_KEY_UPDATE, i);
+        updateIntent.putExtra(EXTRA_KEY_NEED_PHOTO, isNeedPhoto);
+        sendBroadcast(updateIntent);
+    }
+
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
@@ -284,7 +382,6 @@ public class GeoIntentService extends Service implements LocationListener,
                 return;
             }
             mCurrentLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-            Log.d("sdf", "");
         }
 
         startLocationUpdates();
@@ -298,7 +395,10 @@ public class GeoIntentService extends Service implements LocationListener,
 
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
         Location mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
@@ -309,5 +409,20 @@ public class GeoIntentService extends Service implements LocationListener,
 
     @Override public void onLocationChanged(Location location) {
         mCurrentLocation = location;
+        if (isStarted) {
+            List<Point> points = new ArrayList<>();
+            points.add(makePoint(location));
+            setPoint(points);
+        }
     }
+
+    private Point makePoint(Location location) {
+        Point point = new Point();
+        point.setTime(Calendar.getInstance().getTimeInMillis());
+        point.setSpeed(location.getSpeed());
+        point.setLat(location.getLatitude());
+        point.setLon(location.getLongitude());
+        return point;
+    }
+
 }
