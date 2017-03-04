@@ -8,7 +8,6 @@ import android.app.Service;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.location.LocationListener;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -20,21 +19,24 @@ import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 
-public class GeoIntentService extends Service implements LocationListener,
-        GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener
-{
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+import su.ati.tracker.atitracker.api.Api;
 
-    public static final String ACTION_MYINTENTSERVICE = "su.ati.tracker.atitracker.intentservice.RESPONSE";
-    public static final String EXTRA_KEY_OUT = "EXTRA_OUT";
+import static su.ati.tracker.atitracker.api.Api.API_URL;
+
+public class GeoIntentService extends Service implements LocationListener,
+        GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
     public static final String ACTION_UPDATE = "su.ati.tracker.atitracker.intentservice.UPDATE";
     public static final String EXTRA_KEY_UPDATE = "EXTRA_UPDATE";
     /**
      * The desired interval for location updates. Inexact. Updates may be more or less frequent.
      */
-    public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 1000;
+    public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 10000;
     /**
      * The fastest rate for active location updates. Exact. Updates will never be more frequent
      * than this value.
@@ -64,7 +66,6 @@ public class GeoIntentService extends Service implements LocationListener,
      */
     protected String mLastUpdateTime;
     private PendingIntent pIntent;
-    private String extraOut = "Кота накормили, погладили и поиграли с ним";
     private Notification notification;
     private boolean mIsSuccess;
     private boolean mIsStopped;
@@ -80,14 +81,37 @@ public class GeoIntentService extends Service implements LocationListener,
 
         mLastUpdateTime = "";
 
-
-        // Kick off the process of building a GoogleApiClient and requesting the LocationServices
-        // API.
         buildGoogleApiClient();
         mGoogleApiClient.connect();
         Intent intent1 = new Intent(this, MainActivity.class);
         intent1.putExtra("sdfsdf", "somefile");
         pIntent = PendingIntent.getActivity(this, 0, intent1, 0);
+
+
+
+
+
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(API_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        Api.AtiTracker service = retrofit.create(Api.AtiTracker.class);
+
+
+//        Call<List<Api.Contributor>> call = service.contributors();
+//        call.enqueue(new Callback<List<Api.Contributor>>() {
+//            @Override
+//            public void onResponse(Response<List<Api.Contributor>> response) {
+//                // Get result Repo from response.body()
+//            }
+//
+//            @Override
+//            public void onFailure(Throwable t) {
+//
+//            }
+//        });
+
     }
 
 
@@ -96,17 +120,9 @@ public class GeoIntentService extends Service implements LocationListener,
      */
     protected void startLocationUpdates() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
             return;
         }
-//        LocationServices.FusedLocationApi.requestLocationUpdates(
-//                mGoogleApiClient, mLocationRequest, GeoIntentService.this);
+        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
     }
 
 
@@ -120,7 +136,7 @@ public class GeoIntentService extends Service implements LocationListener,
 
         // The final argument to {@code requestLocationUpdates()} is a LocationListener
         // (http://developer.android.com/reference/com/google/android/gms/location/LocationListener.html).
-//        LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, GeoIntentService.this);
+        //        LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, GeoIntentService.this);
     }
 
 
@@ -255,29 +271,9 @@ public class GeoIntentService extends Service implements LocationListener,
                     startForeground(998, notification);
 
                 }
-//                stopForeground(true);
+                //                stopForeground(true);
             }
         }).start();
-    }
-
-    @Override
-    public void onLocationChanged(Location location) {
-        mCurrentLocation = location;
-    }
-
-    @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) {
-        Log.d("sdf", "sdf");
-    }
-
-    @Override
-    public void onProviderEnabled(String provider) {
-
-    }
-
-    @Override
-    public void onProviderDisabled(String provider) {
-
     }
 
     @Override
@@ -303,18 +299,15 @@ public class GeoIntentService extends Service implements LocationListener,
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
             return;
         }
         Location mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
         if (mLastLocation != null) {
             Log.d("sdf", String.valueOf(mLastLocation.getLatitude()));
         }
+    }
+
+    @Override public void onLocationChanged(Location location) {
+        mCurrentLocation = location;
     }
 }

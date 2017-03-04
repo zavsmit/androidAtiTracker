@@ -1,3 +1,14 @@
 <resources>
-    <string name="app_name">AtiTracker</string>
+    <string name="app_name">АТИ-Трекер</string>
+    <string name="start">Начать маршрут</string>
+    <string name="end">Завершить маршрут</string>
+    <string name="you_work">Вы заработали</string>
+    <string name="price_more">Сумма увеличивается,\nесли вы в сети.</string>
+    <string name="firm_info">ООО, Балтимор, 332 552 Мороженные помидоры, 16т., насыпью</string>
+    <string name="by_load">Связаться по грузу</string>
+    <string name="zero_rub">0 ₽</string>
+    <string name="take_photo">СДЕЛАТЬ ФОТО</string>
+    <string name="photo_descr">- двери кузова, чтобы было видно пломбу,\n- кузов слева,\n- кузов справа.</string>
+    <string name="take_3_photo">Сделайте 3 фото на ближайшей остановке:</string>
+    <string name="add_100">Получите 100₽ за задание</string>
 </resources>
