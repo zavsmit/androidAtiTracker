@@ -200,6 +200,8 @@ public class GeoIntentService extends Service implements LocationListener,
     }
 
     private void setPoint(List<Point> points) {
+        Log.d("asdf", "time = " + points.get(0).getTime());
+
         Call<SetPoint> call = mService.setPoint(rideId, points);
         call.enqueue(new Callback<SetPoint>() {
             @Override public void onResponse(Call<SetPoint> call, retrofit2.Response<SetPoint> response) {
@@ -235,7 +237,8 @@ public class GeoIntentService extends Service implements LocationListener,
      * Requests location updates from the FusedLocationApi.
      */
     protected void startLocationUpdates() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
@@ -247,7 +250,7 @@ public class GeoIntentService extends Service implements LocationListener,
      */
     protected void stopLocationUpdates() {
         if (mGoogleApiClient.isConnected()) {
-            stopLocationUpdates();
+//            stopLocationUpdates();
         }
         mGoogleApiClient.disconnect();
         // It is a good practice to remove location requests when the activity is in a paused or
@@ -304,9 +307,9 @@ public class GeoIntentService extends Service implements LocationListener,
 
     @Override
     public void onDestroy() {
-
+        stopForeground(true);
         if (mDestroyBroadcast != null) {
-            if (mDestroyBroadcast.isOrderedBroadcast())
+//            if (mDestroyBroadcast.isOrderedBroadcast())
                 unregisterReceiver(mDestroyBroadcast);
         }
 
@@ -417,6 +420,15 @@ public class GeoIntentService extends Service implements LocationListener,
     }
 
     private Point makePoint(Location location) {
+
+//        boolean isMock = false;
+//        if (android.os.Build.VERSION.SDK_INT >= 18) {
+//            isMock = location.isFromMockProvider();
+//        } else {
+//            isMock = Settings.Secure.getString(context.getContentResolver(), Settings.Secure.ALLOW_MOCK_LOCATION).equals("0");
+//        }
+
+
         Point point = new Point();
         point.setTime(Calendar.getInstance().getTimeInMillis());
         point.setSpeed(location.getSpeed());

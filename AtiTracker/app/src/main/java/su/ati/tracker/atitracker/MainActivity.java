@@ -2,6 +2,8 @@ package su.ati.tracker.atitracker;
 
 import android.Manifest;
 import android.content.BroadcastReceiver;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -22,6 +24,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 
@@ -48,6 +51,7 @@ import static su.ati.tracker.atitracker.MapsActivity.EXTRA_END_LON;
 import static su.ati.tracker.atitracker.MapsActivity.EXTRA_START_LAT;
 import static su.ati.tracker.atitracker.MapsActivity.EXTRA_START_LON;
 import static su.ati.tracker.atitracker.api.Api.API_URL;
+import static su.ati.tracker.atitracker.api.SharedPref.getRideId;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -89,7 +93,6 @@ public class MainActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         getSupportActionBar().setTitle(getString(R.string.app_name));
 
-
         takePhoto.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA)
@@ -128,13 +131,27 @@ public class MainActivity extends AppCompatActivity {
 
         initRetrofit();
 
+
+        Button b = (Button) findViewById(R.id.b_copy);
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View view) {
+
+                String ddd = SharedPref.getRideId(MainActivity.this);
+
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                ClipData clip = ClipData.newPlainText("", ddd);
+                clipboard.setPrimaryClip(clip);
+            }
+        });
+
+
         setUpdate(SharedPref.getProgress(this));
         showOrHidePhoto(SharedPref.isNeedPhoto(this));
     }
 
     private void sendPhoto(String photo) {
 
-        String rideId = SharedPref.getRideId(this);
+        String rideId = getRideId(this);
         if (rideId.isEmpty()) {
             return;
         }
@@ -305,7 +322,7 @@ public class MainActivity extends AppCompatActivity {
         mMenu = menu;
         getMenuInflater().inflate(R.menu.menu, menu);
 
-        if (SharedPref.getRideId(this).isEmpty()) {
+        if (getRideId(this).isEmpty()) {
             changeItemMenu(MENU_GEO);
         } else {
             if (isStarted) {
@@ -341,17 +358,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void endRoute() {
+//        destroyServise();
         lngStart = null;
         lngEnd = null;
         SharedPref.clear(this);
         llPhoto.setVisibility(View.GONE);
         changeItemMenu(MENU_GEO);
-
+//
         if (mMyServiceIntent != null) {
             stopService(mMyServiceIntent);
             mMyServiceIntent = null;
+        } else {
+            destroyServise();
         }
-        destroyServise();
+
 
         if (mUpdateBroadcastReceiver != null) {
             if (mUpdateBroadcastReceiver.isOrderedBroadcast())

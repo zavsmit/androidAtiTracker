@@ -57,6 +57,13 @@
             android:progress="0"/>
 
 
+        <Button
+            android:layout_below="@+id/progressbar"
+            android:id="@+id/b_copy"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="copiId"/>
+
         <LinearLayout
             android:id="@+id/ll_price"
             android:layout_width="wrap_content"
