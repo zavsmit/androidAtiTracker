@@ -21,4 +21,10 @@
         app:showAsAction="never">
     </item>
 
+    <item
+        android:id="@+id/menu_action_demo"
+        android:title="@string/demo"
+        app:showAsAction="never">
+    </item>
+
 </menu>

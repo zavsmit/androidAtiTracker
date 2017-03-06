@@ -29,6 +29,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static final String EXTRA_START_LON = "su.ati.tracker.atitracker.START_LON";
     public static final String EXTRA_END_LAT = "su.ati.tracker.atitracker.END_LAT";
     public static final String EXTRA_END_LON = "su.ati.tracker.atitracker.END_LON";
+    public static final String EXTRA_DEMO = "su.ati.tracker.atitracker.DEMO";
 
     private GoogleMap mMap;
     private int countMarkers;

@@ -56,14 +56,6 @@
             android:max="100"
             android:progress="0"/>
 
-
-        <Button
-            android:layout_below="@+id/progressbar"
-            android:id="@+id/b_copy"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="copiId"/>
-
         <LinearLayout
             android:id="@+id/ll_price"
             android:layout_width="wrap_content"
@@ -155,10 +147,18 @@
             android:paddingRight="16dp"
             android:paddingTop="24dp">
 
+
+            <android.support.v7.widget.AppCompatTextView
+                android:id="@+id/tv_id"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/grey"/>
+
             <android.support.v7.widget.AppCompatTextView
                 android:id="@+id/tv_sendMe"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_below="@+id/tv_id"
                 android:text="@string/by_load"
                 android:textColor="@color/grey"/>
 

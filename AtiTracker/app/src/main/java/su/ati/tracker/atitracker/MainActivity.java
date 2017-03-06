@@ -24,9 +24,9 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.model.LatLng;
 
@@ -44,8 +44,10 @@ import su.ati.tracker.atitracker.api.model.SendPhoto;
 
 import static su.ati.tracker.atitracker.GeoIntentService.ACTION_DESTROY;
 import static su.ati.tracker.atitracker.GeoIntentService.ACTION_UPDATE;
+import static su.ati.tracker.atitracker.GeoIntentService.EXTRA_ID_TRACK;
 import static su.ati.tracker.atitracker.GeoIntentService.EXTRA_KEY_NEED_PHOTO;
 import static su.ati.tracker.atitracker.GeoIntentService.EXTRA_KEY_UPDATE;
+import static su.ati.tracker.atitracker.MapsActivity.EXTRA_DEMO;
 import static su.ati.tracker.atitracker.MapsActivity.EXTRA_END_LAT;
 import static su.ati.tracker.atitracker.MapsActivity.EXTRA_END_LON;
 import static su.ati.tracker.atitracker.MapsActivity.EXTRA_START_LAT;
@@ -66,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
     private final static int MAP_CODE = 155;
     private int lastUpdate;
     private AppCompatTextView price;
+    private AppCompatTextView tvId;
     private ProgressBar progressBar;
     private LinearLayout llPhoto;
     private boolean isStarted;
@@ -83,6 +86,7 @@ public class MainActivity extends AppCompatActivity {
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         AppCompatTextView takePhoto = (AppCompatTextView) findViewById(R.id.tv_take_photo);
+        tvId = (AppCompatTextView) findViewById(R.id.tv_id);
         AppCompatImageView send = (AppCompatImageView) findViewById(R.id.iv_send);
         AppCompatImageView call = (AppCompatImageView) findViewById(R.id.iv_call);
         price = (AppCompatTextView) findViewById(R.id.tv_price);
@@ -131,22 +135,20 @@ public class MainActivity extends AppCompatActivity {
 
         initRetrofit();
 
+        setUpdate(SharedPref.getProgress(this));
+        showOrHidePhoto(SharedPref.isNeedPhoto(this));
 
-        Button b = (Button) findViewById(R.id.b_copy);
-        b.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View view) {
-
+        tvId.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
                 String ddd = SharedPref.getRideId(MainActivity.this);
 
                 ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
                 ClipData clip = ClipData.newPlainText("", ddd);
                 clipboard.setPrimaryClip(clip);
+                Toast.makeText(MainActivity.this, "скопировано", Toast.LENGTH_SHORT).show();
             }
         });
-
-
-        setUpdate(SharedPref.getProgress(this));
-        showOrHidePhoto(SharedPref.isNeedPhoto(this));
     }
 
     private void sendPhoto(String photo) {
@@ -243,6 +245,7 @@ public class MainActivity extends AppCompatActivity {
 
                 changeItemMenu(MENU_START);
                 price.setText(0 + " \u20BD");
+                tvId.setText("");
                 lastUpdate = 0;
                 progressBar.setProgress(0);
             }
@@ -286,6 +289,10 @@ public class MainActivity extends AppCompatActivity {
                 break;
             case R.id.menu_action_end:
                 endRoute();
+                break;
+            case R.id.menu_action_demo:
+                startRoute(true);
+                changeItemMenu(MENU_END);
                 break;
             case R.id.menu_action_geo:
                 if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA)
@@ -349,13 +356,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void endRoute() {
-//        destroyServise();
         lngStart = null;
         lngEnd = null;
         SharedPref.clear(this);
         llPhoto.setVisibility(View.GONE);
         changeItemMenu(MENU_GEO);
-//
+
         if (mMyServiceIntent != null) {
             stopService(mMyServiceIntent);
             mMyServiceIntent = null;
@@ -371,12 +377,18 @@ public class MainActivity extends AppCompatActivity {
         isStarted = false;
     }
 
-    private void startRoute() {
+    private void startRoute(boolean isDemo) {
         mMyServiceIntent = new Intent(MainActivity.this, GeoIntentService.class);
-        mMyServiceIntent.putExtra(EXTRA_START_LAT, lngStart.latitude);
-        mMyServiceIntent.putExtra(EXTRA_START_LON, lngStart.longitude);
-        mMyServiceIntent.putExtra(EXTRA_END_LAT, lngEnd.latitude);
-        mMyServiceIntent.putExtra(EXTRA_END_LON, lngEnd.longitude);
+        if(lngStart != null){
+            mMyServiceIntent.putExtra(EXTRA_START_LAT, lngStart.latitude);
+            mMyServiceIntent.putExtra(EXTRA_START_LON, lngStart.longitude);
+        }
+        if(lngEnd != null){
+            mMyServiceIntent.putExtra(EXTRA_END_LAT, lngEnd.latitude);
+            mMyServiceIntent.putExtra(EXTRA_END_LON, lngEnd.longitude);
+        }
+
+        mMyServiceIntent.putExtra(EXTRA_DEMO, isDemo);
         startService(mMyServiceIntent);
 
         mUpdateBroadcastReceiver = new UpdateBroadcastReceiver();
@@ -388,6 +400,10 @@ public class MainActivity extends AppCompatActivity {
 
         isStarted = true;
         changeItemMenu(MENU_END);
+    }
+
+    private void startRoute() {
+        startRoute(false);
     }
 
     private void setUpdate(int update) {
@@ -413,7 +429,8 @@ public class MainActivity extends AppCompatActivity {
         public void onReceive(Context context, Intent intent) {
             int update = intent.getIntExtra(EXTRA_KEY_UPDATE, 0);
             boolean isNeedPhoto = intent.getBooleanExtra(EXTRA_KEY_NEED_PHOTO, false);
-
+            String id = intent.getStringExtra(EXTRA_ID_TRACK);
+            tvId.setText(id);
             setUpdate(update);
 
             showOrHidePhoto(isNeedPhoto);
