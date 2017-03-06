@@ -243,6 +243,8 @@ public class MainActivity extends AppCompatActivity {
 
                 changeItemMenu(MENU_START);
                 price.setText(0 + " \u20BD");
+                lastUpdate = 0;
+                progressBar.setProgress(0);
             }
         }
     }
@@ -250,20 +252,9 @@ public class MainActivity extends AppCompatActivity {
     public static Bitmap scaleDown(Bitmap realImage, float maxImageSize,
                                    boolean filter) {
 
-
-
         Matrix m = new Matrix();
         m.setRectToRect(new RectF(0, 0, realImage.getWidth(), realImage.getHeight()), new RectF(0, 0, maxImageSize, maxImageSize), Matrix.ScaleToFit.CENTER);
         return Bitmap.createBitmap(realImage, 0, 0, realImage.getWidth(), realImage.getHeight(), m, true);
-
-//        float ratio = Math.min(
-//                (float) maxImageSize / realImage.getWidth(),
-//                (float) maxImageSize / realImage.getHeight());
-//        int width = Math.round((float) ratio * realImage.getWidth());
-//        int height = Math.round((float) ratio * realImage.getHeight());
-//
-//        return Bitmap.createScaledBitmap(realImage, width,
-//                height, filter);
     }
 
     @Override
@@ -428,8 +419,6 @@ public class MainActivity extends AppCompatActivity {
             showOrHidePhoto(isNeedPhoto);
         }
     }
-
-
 
     private void destroyServise() {
         Intent updateIntent = new Intent();

@@ -13,4 +13,5 @@
     <string name="take_3_photo">Сделайте 3 фото на ближайшей остановке:</string>
     <string name="add_100">Получите 100₽ за задание</string>
     <string name="title_activity_maps">Map</string>
+    <string name="title_activity_maps2">Map</string>
 </resources>
