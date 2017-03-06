@@ -66,7 +66,7 @@ public class GeoIntentService extends Service implements LocationListener,
     /**
      * The desired interval for location updates. Inexact. Updates may be more or less frequent.
      */
-    public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 10000;
+    public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 5000;
     /**
      * The fastest rate for active location updates. Exact. Updates will never be more frequent
      * than this value.
